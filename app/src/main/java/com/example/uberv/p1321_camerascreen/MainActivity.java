@@ -1,10 +1,16 @@
 package com.example.uberv.p1321_camerascreen;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.YuvImage;
 import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.Size;
@@ -16,6 +22,7 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.ImageView;
 
 // ACHTUNG!
 // ВРУЧНУЮ ДАТЬ PERMISSION ПРИЛОЖЕНИЮ НА ИСПОЛЬЗОВАНИЕ КАМЕРЫ!!!
@@ -28,7 +35,7 @@ public class MainActivity extends Activity {
     SurfaceHolder holder;
     HolderCallback holderCallback;
     Camera camera;
-
+    ImageView mImageView;
     final int CAMERA_ID = 0;
     final boolean FULL_SCREEN = true;
 
@@ -47,6 +54,8 @@ public class MainActivity extends Activity {
         // setContentView() нельзя вызывать до requestFeature()
         setContentView(R.layout.activity_main);
 
+        mImageView = (ImageView) findViewById(R.id.image);
+
         // изображение камеры будет выводиться на SurfaceView, который и создан для целей рисования на нём
         sv = (SurfaceView) findViewById(R.id.surfaceView);
         // получаем его holder
@@ -56,6 +65,8 @@ public class MainActivity extends Activity {
         holderCallback = new HolderCallback();
         holder.addCallback(holderCallback);
 
+
+
     }
 
     @Override
@@ -63,14 +74,24 @@ public class MainActivity extends Activity {
         super.onResume();
         // получаем доступ к камере
         // camera = Camera.open(CAMERA_ID); // открыть камеру с таким-то ид
-        camera = Camera.open(); // без ID - задняя камера
+        camera = getCameraInstance();
 
         // назначем колбэк для каждого кадра превью
         camera.setPreviewCallback(new Camera.PreviewCallback() {
             @Override
             public void onPreviewFrame(byte[] bytes, Camera camera) {
-                // TODO УБЕРИ ПОТОМ. ЕБАШИТ ПО КОНСОЛИ ПИЗДЕЦ
-                Log.d("Camera","callback");
+                if(camera!=null){
+                    // TODO УБЕРИ ПОТОМ. ЕБАШИТ ПО КОНСОЛИ ПИЗДЕЦ
+//                Log.d("Camera","callback");
+                    Size previewSize = camera.getParameters().getPreviewSize();
+                    YuvImage yuvimage=new YuvImage(bytes, ImageFormat.NV21, previewSize.width, previewSize.height, null);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    yuvimage.compressToJpeg(new Rect(0, 0, previewSize.width, previewSize.height), 80, baos);
+                    byte[] jdata = baos.toByteArray();
+                    // Convert to Bitmap
+                    Bitmap bmp = BitmapFactory.decodeByteArray(jdata, 0, jdata.length);
+                    mImageView.setImageBitmap(bmp);
+                }
             }
         });
 
@@ -95,8 +116,12 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         // освобождаем камеру
-        if (camera != null)
+        if (camera != null){
+            // Убрать колбэк, чтобы не вылетел эксепшн
+            camera.setPreviewCallback(null);
             camera.release();
+        }
+
         camera = null;
     }
 
@@ -198,8 +223,11 @@ public class MainActivity extends Activity {
         matrix.mapRect(rectPreview);
 
         // установка размеров surface из получившегося преобразования
-        sv.getLayoutParams().height = (int) (rectPreview.bottom);
+        sv.getLayoutParams().height = (int) (rectPreview.bottom/2);
         sv.getLayoutParams().width = (int) (rectPreview.right);
+
+        mImageView.getLayoutParams().height = (int) (rectPreview.bottom/2);
+        mImageView.getLayoutParams().width = (int) (rectPreview.right);
     }
 
     /** Метод, который будет вращать превью в зависимости от ориентации устройства */
