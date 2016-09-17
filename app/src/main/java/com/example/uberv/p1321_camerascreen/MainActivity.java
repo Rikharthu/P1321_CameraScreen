@@ -9,6 +9,7 @@ import android.hardware.Camera;
 import android.hardware.Camera.CameraInfo;
 import android.hardware.Camera.Size;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
@@ -34,7 +35,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
         // Настраиваем прилоежние так, чтобы:
         // 1. Оно было без загаловка
@@ -42,6 +42,10 @@ public class MainActivity extends Activity {
         // 2. в полный экран
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+
+        // setContentView() нельзя вызывать до requestFeature()
+        setContentView(R.layout.activity_main);
 
         // изображение камеры будет выводиться на SurfaceView, который и создан для целей рисования на нём
         sv = (SurfaceView) findViewById(R.id.surfaceView);
@@ -51,6 +55,7 @@ public class MainActivity extends Activity {
         // через этот callback наш holder будет сообщать нам о состоянии SurfaceView
         holderCallback = new HolderCallback();
         holder.addCallback(holderCallback);
+
     }
 
     @Override
@@ -59,6 +64,16 @@ public class MainActivity extends Activity {
         // получаем доступ к камере
         // camera = Camera.open(CAMERA_ID); // открыть камеру с таким-то ид
         camera = Camera.open(); // без ID - задняя камера
+
+        // назначем колбэк для каждого кадра превью
+        camera.setPreviewCallback(new Camera.PreviewCallback() {
+            @Override
+            public void onPreviewFrame(byte[] bytes, Camera camera) {
+                // TODO УБЕРИ ПОТОМ. ЕБАШИТ ПО КОНСОЛИ ПИЗДЕЦ
+                Log.d("Camera","callback");
+            }
+        });
+
         // настраиваем размер surface
         setPreviewSize(FULL_SCREEN);
     }
@@ -68,6 +83,7 @@ public class MainActivity extends Activity {
         Camera c = null;
         try {
             c = Camera.open(); // attempt to get a Camera instance
+
         }
         catch (Exception e){
             // Camera is not available (in use or does not exist)
@@ -93,7 +109,9 @@ public class MainActivity extends Activity {
             // с помощью метода setPreviewDisplay и начать транслировать
             // изображение методом startPreview.
             try {
+                // назначить view, на который рисовать превью
                 camera.setPreviewDisplay(holder);
+                // начать рисовать превью
                 camera.startPreview();
             } catch (IOException e) {
                 e.printStackTrace();
